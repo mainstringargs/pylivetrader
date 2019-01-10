@@ -27,23 +27,25 @@ from itertools import cycle
 
 import logbook
 
+logbook.set_datetime_format("local")
+
 log = logbook.Logger('algo')
 
 
 def record(*args, **kwargs):
-    print('args={}, kwargs={}'.format(args, kwargs))
+    log.info('args={}, kwargs={}'.format(args, kwargs))
 
 
 def initialize(context):
-
+    log.info("initialize");
     context.MaxCandidates = 100
-    context.MaxBuyOrdersAtOnce = 30
+    context.MaxBuyOrdersAtOnce = 60
     context.MyLeastPrice = 3.00
     context.MyMostPrice = 25.00
     context.MyFireSalePrice = context.MyLeastPrice
     context.MyFireSaleAge = 6
 
-    print(len(context.portfolio.positions))
+    log.info(len(context.portfolio.positions))
 
     # Rebalance
     EveryThisManyMinutes = 10
@@ -83,7 +85,7 @@ def make_pipeline(context):
     """
     Create our pipeline.
     """
-
+    log.info("make_pipeline");
     # Filter for primary share equities. IsPrimaryShare is a built-in filter.
     primary_share = IsPrimaryShare()
 
@@ -114,7 +116,7 @@ def make_pipeline(context):
     )
 
     LowVar = 6
-    HighVar = 40
+    HighVar = 60
 
     log.info(
         '''
@@ -169,6 +171,7 @@ def my_compute_weights(context):
 
 
 def before_trading_start(context, data):
+    log.info("before_trading_start");
     # over simplistic tracking of position age
     if not hasattr(context, 'age') or not context.age:
         context.age = {}
@@ -187,7 +190,7 @@ def before_trading_start(context, data):
         context.MyCandidate = cycle(context.stocks_worst)
 
         context.LowestPrice = context.MyLeastPrice  # reset beginning of day
-        print(len(context.portfolio.positions))
+        log.info(len(context.portfolio.positions))
         for stock in context.portfolio.positions:
             CurrPrice = float(data.current([stock], 'price'))
             if CurrPrice < context.LowestPrice:
@@ -208,6 +211,7 @@ def before_trading_start(context, data):
 
 
 def my_rebalance(context, data):
+    log.info("my_rebalance");
     BuyFactor = .99
     SellFactor = 1.01
     cash = context.portfolio.cash
@@ -289,6 +293,7 @@ def make_div_by_05(s, buy=False):
 
 
 def my_record_vars(context, data):
+    log.info('my_record_vars')
     """
     Record variables at the end of each day.
     """
@@ -299,7 +304,7 @@ def my_record_vars(context, data):
     if 0 < len(context.age):
         MaxAge = context.age[max(
             list(context.age.keys()), key=(lambda k: context.age[k]))]
-        print(MaxAge)
+        log.info(MaxAge)
         record(MaxAge=MaxAge)
     record(LowestPrice=context.LowestPrice)
 
@@ -331,8 +336,8 @@ def cancel_open_buy_orders(context, data):
         return
     for stock, orders in oo.items():
         for o in orders:
-            # message = 'Canceling order of {amount} shares in {stock}'
-            # log.info(message.format(amount=o.amount, stock=stock))
+            message = 'Canceling order of {amount} shares in {stock}'
+            log.info(message.format(amount=o.amount, stock=stock))
             if 0 < o.amount:  # it is a buy order
                 cancel_order(o)
 
@@ -343,8 +348,8 @@ def cancel_open_orders(context, data):
         return
     for stock, orders in oo.items():
         for o in orders:
-            # message = 'Canceling order of {amount} shares in {stock}'
-            # log.info(message.format(amount=o.amount, stock=stock))
+            message = 'Canceling order of {amount} shares in {stock}'
+            log.info(message.format(amount=o.amount, stock=stock))
             cancel_order(o)
 
 # This is the every minute stuff
