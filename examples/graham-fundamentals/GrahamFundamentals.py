@@ -20,6 +20,11 @@ from pylivetrader import *
 import pandas as pd
 import numpy as np
 import json
+import logbook
+
+logbook.set_datetime_format("local")
+
+log = logbook.Logger('grahamFundamentals')
 
 
 def get_sector(sector_name):
@@ -28,6 +33,7 @@ def get_sector(sector_name):
 
 
 def initialize(context):
+    log.info("initialize");
     # These are the sectors we're interested in trading.
     # They can be individually commented out if you wish to avoid one sector
     # or another.
@@ -52,6 +58,7 @@ def initialize(context):
     context.run_once = True
 
 def handle_data(context, data):
+    log.info("handle_data");
     # Go ahead and run once when the script starts to fill out the portfolio.
     if context.run_once:
         print("ordering")
@@ -59,6 +66,7 @@ def handle_data(context, data):
         context.run_once = False
 
 def try_rebalance(context, data):
+    log.info("try_rebalance");
     # See if it's time to rebalance every month.
     # We'll reevaluate our positions once every three months.
     if context.months_until_rebalance == 1:
@@ -70,6 +78,7 @@ def try_rebalance(context, data):
 
 
 def update_target_securities(context):
+    log.info("update_target_securities");
     # In order to avoid overinvestment in large sectors, we'll be weighting each
     # stock by its sector contribution. More on this below.
     context.total_sector_contributions = 0
@@ -100,6 +109,7 @@ def update_target_securities(context):
 
 
 def rebalance(context):
+    log.info("rebalance");
     # We want to purchase all stocks in our dataframe, if possible.
     desired_stocks = context.all_sectors_fundamental_df.index.values
     print(desired_stocks)
@@ -144,6 +154,7 @@ def filter_fundamental_df(fundamental_df):
 
 
 def build_sector_fundamentals(sector):
+    log.info("build_sector_fundamentals");
     '''
     In this method, for the given sector, we'll get the data we need for each stock
     in the sector from IEX. Once we have the data, we'll check that the earnings
@@ -203,6 +214,7 @@ def build_sector_fundamentals(sector):
 
 
 def eps_good(earnings_reports):
+    log.info("eps_good");
     # This method contains logic for filtering based on earnings reports.
     if len(earnings_reports) < 4:
         # The company must be very new. We'll skip it until it's had time to
@@ -227,6 +239,7 @@ def eps_good(earnings_reports):
 
 
 def data_quality_good(symbol, financials_json, quote_json, stats_json):
+    log.info("data_quality_good");
     # This method makes sure that we're not going to be investing in
     # securities we don't have accurate data for.
 
