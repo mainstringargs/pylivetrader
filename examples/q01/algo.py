@@ -39,7 +39,7 @@ def record(*args, **kwargs):
 def initialize(context):
     log.info("initialize");
     context.MaxCandidates = 100
-    context.MaxBuyOrdersAtOnce = 60
+    context.MaxBuyOrdersAtOnce = 30
     context.MyLeastPrice = 3.00
     context.MyMostPrice = 25.00
     context.MyFireSalePrice = context.MyLeastPrice
@@ -86,6 +86,10 @@ def make_pipeline(context):
     Create our pipeline.
     """
     log.info("make_pipeline");
+	
+    late_alpha = IEXCompany.symbol.latest.matches('^[a-mA-M].*')
+	
+	
     # Filter for primary share equities. IsPrimaryShare is a built-in filter.
     primary_share = IsPrimaryShare()
 
@@ -113,10 +117,12 @@ def make_pipeline(context):
         & have_market_cap
         & AtLeastPrice
         & AtMostPrice
+        & late_alpha		
     )
 
+
     LowVar = 6
-    HighVar = 60
+    HighVar = 40
 
     log.info(
         '''
@@ -215,7 +221,7 @@ def my_rebalance(context, data):
     BuyFactor = .99
     SellFactor = 1.01
     cash = context.portfolio.cash
-
+    log.info(cash);
     cancel_open_buy_orders(context, data)
 
     # Order sell at profit target in hope that somebody actually buys it
