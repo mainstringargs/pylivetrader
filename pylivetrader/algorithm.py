@@ -89,9 +89,19 @@ from logbook import Logger, lookup_level
 log = Logger('Algorithm')
 
 
-class Algorithm:
+class Algorithm(object):
     """Provides algorithm compatible with zipline.
     """
+
+    def __setattr__(self, name, value):
+        # Reject names that overlap with API method names
+        if hasattr(self, 'api_methods') and name in self.api_methods:
+            raise AttributeError(
+                'Cannot set {} on context object as it is the name of '
+                'an API method.'.format(name)
+            )
+        else:
+            object.__setattr__(self, name, value)
 
     def __init__(self, *args, **kwargs):
         '''
@@ -113,6 +123,8 @@ class Algorithm:
         assert self.data_frequency in ('minute', 'daily')
 
         self._algoname = kwargs.pop('algoname', 'algo')
+
+        self.quantopian_compatible = kwargs.pop('quantopian_compatible', True)
 
         self._state_store = StateStore(
             kwargs.pop('statefile', None) or
@@ -151,7 +163,11 @@ class Algorithm:
             'trading_calendar', get_calendar('NYSE'))
 
         self.data_portal = DataPortal(
-            self._backend, self.asset_finder, self.trading_calendar)
+            self._backend,
+            self.asset_finder,
+            self.trading_calendar,
+            self.quantopian_compatible
+        )
 
         self.event_manager = EventManager()
 
@@ -187,15 +203,22 @@ class Algorithm:
 
         self.initialized = False
 
+        self.api_methods = [func for func in dir(Algorithm) if callable(
+            getattr(Algorithm, func)
+        )]
+
     def initialize(self, *args, **kwargs):
         self._context_persistence_excludes = (
             list(self.__dict__.keys()) + ['executor'])
         self._state_store.load(self, self._algoname)
 
+        self._backend.initialize_data(self)
+
         with LiveTraderAPI(self):
             self._initialize(self, *args, **kwargs)
             self._state_store.save(
                 self, self._algoname, self._context_persistence_excludes)
+
         self.initialized = True
 
     def handle_data(self, data):
@@ -485,9 +508,6 @@ class Algorithm:
             self._account_needs_update = False
         return self._account
 
-    def set_logger(self, logger):
-        self.logger = logger
-
     def on_dt_changed(self, dt):
         self._portfolio_needs_update = True
         self._account_needs_update = True
@@ -639,10 +659,10 @@ class Algorithm:
         orders = self._backend.all_orders(before, status, days_back)
 
         omap = {}
-        orders = sorted([
+        sorted_orders = sorted([
             o for o in orders.values()
         ], key=lambda o: o.dt)
-        for order in orders:
+        for order in sorted_orders:
             key = order.asset
             if key not in omap:
                 omap[key] = []
@@ -650,6 +670,7 @@ class Algorithm:
 
         if asset is None:
             return omap
+
         return omap.get(asset, [])
 
     @api_method
@@ -806,8 +827,7 @@ class Algorithm:
             zero_message = "Price of 0 for {psid}; can't infer value".format(
                 psid=asset
             )
-            if self.logger:
-                self.logger.debug(zero_message)
+            log.debug(zero_message)
             # Don't place any order
             return 0
 
